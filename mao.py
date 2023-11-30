@@ -38,7 +38,7 @@ class MaoGame:
         self.turn = 0
         self.is_done = False
         self.validity_rules = [uno_rules]
-        self.dynamics_rules = [king_skips]
+        self.dynamics_rules = [] #[king_skips]
 
     def __repr__(self):
         return f"Game({self.round_num}-{self.card_num},{self.players})"
@@ -110,8 +110,8 @@ class MaoGame:
             print(f"The winner is {winners}.")
 
         # Increment game counter variables
-        game.turn += 1
-        game.turn %= self.config.num_players
+        self.turn += 1
+        self.turn %= self.config.num_players
         self.card_num += 1
 
     def encode(self,cards):
@@ -123,9 +123,35 @@ class MaoGame:
         one_hot = [0 for _ in range(52)]
         for card in cards:
             one_hot[card.id]+=1
-        return np.array(one_hot)
+        return np.array(one_hot,dtype=np.int8)
+    
+    def flatten_observation(self,observation):
+        '''
+        Get a dict of hand, hand_lengths, played_cards, and points, and return flattened numpy array
+        '''
+        flattened = np.concatenate([
+            observation["hand"],
+            observation["hand_lengths"],
+            observation["played_cards"],
+            observation["points"]
+        ])
+        return flattened  
+     
+    def unflatten_observation(self,flattened):
+        observation = {}
+        start_index = 0
+        observation["hands"] = [self.decode(flattened[start_index+i*37:start_index+(i+1)*37]) for i in range(self.config.num_players)]
+        start_index = self.config.num_players*37
+        observation["played_cards"] = [self.decode(flattened[start_index+i*37:start_index+(i+1)*37]) for i in range(self.config.num_players)]
+        start_index = 2*self.config.num_players*37
+        observation["desserts"] = [self.decode(flattened[start_index+i*37:start_index+(i+1)*37]) for i in range(self.config.num_players)]
+        start_index = 3*self.config.num_players*37
+        observation["points"] = flattened[start_index:start_index+self.config.num_players]
+        observation["round"] = flattened[-2]
+        observation["card_num"] = flattened[-1]
+        return observation
 
-    def get_observations(self,playerIndex):
+    def get_observation(self,playerIndex):
         '''
         Get all observations observable by the 'playerIndex'th player
         :param playerIndex: the index of the player whose observations to return
@@ -139,13 +165,21 @@ class MaoGame:
         '''
         observation_order = [(playerIndex + i) % self.config.num_players for i in range(self.config.num_players)]
         return OrderedDict(sorted({
-            "observation": {
+            "observation": self.flatten_observation({
                 "hand": self.encode(self.players[playerIndex].hand),
+                "hand_lengths": np.array([len(self.players[i].hand) for i in range(len(self.players))],dtype=np.float32),
                 "played_cards": self.encode(self.played_cards),
-                "points": np.array([self.players[i].points for i in observation_order]),
-            },
+                "points": np.array([self.players[i].points for i in observation_order],dtype=np.float32),
+            }),
             "action_mask": np.array(self.encode(set(self.players[playerIndex].hand)),dtype=np.int8),
         }.items()))
+    
+    def get_reward(self, playerIndex):
+        length_of_hand = len(self.players[playerIndex].hand)
+        if length_of_hand==0:
+            return 10000
+        else:
+            return -length_of_hand
 
 if __name__ == "__main__":
     game = MaoGame(Config(3,["Alpha","Beta","Gamma"],52))
