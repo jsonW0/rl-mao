@@ -75,6 +75,9 @@ class MaoGame:
         '''
         if len(self.deck) == 0:
             self.deck = self.played_cards[:-1]
+            if len(self.deck)==0:
+                return
+            random.shuffle(self.deck)
             self.played_cards = [self.played_cards[-1]]
         self.players[playerIndex].hand.append(self.deck.pop())
 
@@ -83,6 +86,12 @@ class MaoGame:
         Plays the cards each player has selected
         :param action: the card id chosen by the player
         '''
+        if self.is_done:
+            print("Tried to play done game!")
+            self.turn+=1
+            self.turn%=self.config.num_players
+            return
+
         current_player = self.players[self.turn]
         played_card_index = [i for i,card in enumerate(current_player.hand) if card.id==action][0]
         played_card = current_player.hand[played_card_index]
@@ -125,6 +134,17 @@ class MaoGame:
             one_hot[card.id]+=1
         return np.array(one_hot,dtype=np.int8)
     
+    def decode(self,one_hot):
+        '''
+        Convert a one-hot encoded vector [Number of Egg Nigiri, Number of Salmon Nigiri, ...] to a list of cards
+        :param one_hot: list of card counts
+        :return: list of card objects
+        '''
+        cards = []
+        for i,index in enumerate(one_hot):
+            cards.extend([id_to_card(i) for _ in range(int(index))])
+        return cards
+    
     def flatten_observation(self,observation):
         '''
         Get a dict of hand, hand_lengths, played_cards, and points, and return flattened numpy array
@@ -140,15 +160,14 @@ class MaoGame:
     def unflatten_observation(self,flattened):
         observation = {}
         start_index = 0
-        observation["hands"] = [self.decode(flattened[start_index+i*37:start_index+(i+1)*37]) for i in range(self.config.num_players)]
-        start_index = self.config.num_players*37
-        observation["played_cards"] = [self.decode(flattened[start_index+i*37:start_index+(i+1)*37]) for i in range(self.config.num_players)]
-        start_index = 2*self.config.num_players*37
-        observation["desserts"] = [self.decode(flattened[start_index+i*37:start_index+(i+1)*37]) for i in range(self.config.num_players)]
-        start_index = 3*self.config.num_players*37
+        print(self.decode(flattened[start_index:start_index+52]))
+        observation["hands"] = self.decode(flattened[start_index:start_index+52])
+        start_index = 52
+        observation["hand_lengths"] = flattened[start_index:start_index+self.config.num_players]
+        start_index = 52+self.config.num_players
+        observation["played_cards"] = self.decode(flattened[start_index:start_index+52])
+        start_index = 1-4+self.config.num_players
         observation["points"] = flattened[start_index:start_index+self.config.num_players]
-        observation["round"] = flattened[-2]
-        observation["card_num"] = flattened[-1]
         return observation
 
     def get_observation(self,playerIndex):

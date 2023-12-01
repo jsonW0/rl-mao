@@ -143,6 +143,7 @@ class MaoEnv(AECEnv):
         can be called without issues.
         Here it sets up the state dictionary which is used by step() and the observations dictionary which is used by step() and observe()
         """
+        random.seed(seed)
         self.game = MaoGame(self.config)
         self.game.deal()
 
@@ -169,6 +170,9 @@ class MaoEnv(AECEnv):
         """
         current_agent = self.agents[self.game.turn]
         current_agent_id = self.game.turn
+
+        print(current_agent,action)
+
         # run one step in game
         self.game.play(action)
         
@@ -178,9 +182,20 @@ class MaoEnv(AECEnv):
         # self._cumulative_rewards = {agent: 0 for agent in self.agents}
         # self._cumulative_rewards[current_agent] += self.rewards[current_agent]
         self._cumulative_rewards[current_agent] = 0
-        self.terminations[current_agent] = False
-        self.truncations[current_agent] = False
-        self.infos[current_agent] = {}
+        self.observations = {agent: self.game.get_observation(i) for i,agent in enumerate(self.agents)}
+        if self.game.is_done:
+            broken = False
+            for agent in self.agents:
+                if not self.terminations[agent]:
+                    broken = True
+            if not broken:
+                print(self.terminations)
+                self.terminations[self.agents[self.game.turn]] = True
+        #     self.terminations = {agent: True for agent in self.agents}
+        # else:
+        #     self.terminations = {agent: False for agent in self.agents}
+        # self.truncations[current_agent] = False
+        # self.infos[current_agent] = {}
         self._accumulate_rewards()
         self.agent_selection = self.agents[self.game.turn]
         

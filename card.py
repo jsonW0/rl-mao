@@ -43,6 +43,18 @@ suit_to_num = {
     "H": 2,
     "S": 3
 }
+num_to_suit = {
+    0: "C",
+    1: "D",
+    2: "H",
+    3: "S"
+}
+
+
+def id_to_card(id):
+    number = (id%13)+1
+    suit = id//13
+    return Card(number,num_to_suit[suit])
 
 def parse_human_input(card):
     return Card(int(card[:-1]),card[-1]).id
