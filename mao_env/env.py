@@ -5,7 +5,7 @@ import gymnasium
 from gymnasium.spaces import Box, Discrete, MultiDiscrete, Sequence, Dict, MultiBinary
 # from gymnasium.wrappers import FlattenObservation
 
-from mao import *
+from .mao import *
 
 from pettingzoo import AECEnv
 from pettingzoo.utils import agent_selector, wrappers
@@ -81,12 +81,6 @@ class MaoEnv(AECEnv):
         # })
         return Dict({
             "observation": Box(low=np.NINF,high=np.PINF,shape=[104+2*self.config.num_players]),
-            # "observation": Dict({
-            #     "hand": MultiBinary([52]),
-            #     "hand_lengths": Box(low=0,high=np.PINF,shape=[self.config.num_players]),
-            #     "played_cards": MultiBinary([52]),
-            #     "points": Box(low=np.NINF,high=np.PINF,shape=[self.config.num_players]),
-            # }),
             "action_mask": MultiBinary([52]),
         })
 
@@ -171,111 +165,45 @@ class MaoEnv(AECEnv):
         current_agent = self.agents[self.game.turn]
         current_agent_id = self.game.turn
 
-        print(current_agent,action)
-
         # run one step in game
         self.game.play(action)
         
         # update agent 
         self.rewards = {agent: 0 for agent in self.agents}
         self.rewards[current_agent] = self.game.get_reward(current_agent_id)
-        # self._cumulative_rewards = {agent: 0 for agent in self.agents}
-        # self._cumulative_rewards[current_agent] += self.rewards[current_agent]
         self._cumulative_rewards[current_agent] = 0
         self.observations = {agent: self.game.get_observation(i) for i,agent in enumerate(self.agents)}
         if self.game.is_done:
             broken = False
             for agent in self.agents:
+                if agent==current_agent:
+                    break
                 if not self.terminations[agent]:
                     broken = True
             if not broken:
-                print(self.terminations)
                 self.terminations[self.agents[self.game.turn]] = True
-        #     self.terminations = {agent: True for agent in self.agents}
-        # else:
-        #     self.terminations = {agent: False for agent in self.agents}
-        # self.truncations[current_agent] = False
-        # self.infos[current_agent] = {}
         self._accumulate_rewards()
         self.agent_selection = self.agents[self.game.turn]
         
-        # if self.render_mode == "human":
         self.render()
-    # def step(self, actions):
-    #     """
-    #     step(action) takes in an action for each agent and should return the
-    #     - observations
-    #     - rewards
-    #     - terminations
-    #     - truncations
-    #     - infos
-    #     dicts where each dict looks like {agent_1: item_1, agent_2: item_2}
-    #     """
-    #     # If a user passes in actions with no agents, then just return empty observations, etc.
-    #     if not actions:
-    #         self.agents = []
-    #         return {}, {}, {}, {}, {}
-
-    #     # process card plays
-    #     actions_list = [0 for _ in range(self.config.num_players)]
-    #     for agent, action in actions.items():
-    #         actions_list[self.agent_name_mapping[agent]] = action
-    #     self.game.play(actions_list)
-
-    #     # termination and truncation (https://gymnasium.farama.org/tutorials/gymnasium_basics/handling_time_limits/)
-
-    #     terminations = {agent: False for agent in self.agents}
-
-    #     env_truncation = False  # no truncation since games take constant number of turns
-    #     truncations = {agent: env_truncation for agent in self.agents}
-
-    #     # typically there won't be any information in the infos, but there must
-    #     # still be an entry for each agent
-    #     infos = {agent: {} for agent in self.agents}
-
-    #     # rewards for all agents are placed in the rewards dictionary to be returned
-    #     points = self.game.get_rewards()
-    #     rewards = {agent: points[i] for i,agent in enumerate(self.agents)}
-
-    #     if self.config.num_players <= 3:
-    #         if self.game.card_num == 10:
-    #             if self.game.round_num == 3:
-    #                 terminations = {agent: True for agent in self.agents}
-    #             else:
-    #                 self.game.deal()
-
-    #     # query for next observation
-    #     observations = {agent: self.game.get_observations(self.agent_name_mapping[agent]) for agent in self.agents}
-
-    #     if env_truncation:
-    #         self.agents = []
-
-    #     if self.render_mode is not None:
-    #         self.render()
-
-    #     for agent in terminations:
-    #         if terminations[agent]:
-    #             self.agents.remove(agent)
-
-    #     return observations, rewards, terminations, truncations, infos
 
 if __name__ == "__main__":
     # AEC API Test
     mao_env = env(Config(4,["Alpha","Beta","Gamma","Delta"],52),render_mode="human")
     # print(mao_env.observation_space(0).sample())
-    api_test(mao_env)
+    # api_test(mao_env)
 
-    # # AEC API Random Sampler
-    # mao_env.reset()
-    # for agent in mao_env.agent_iter():
-    #     observation, reward, termination, truncation, info = mao_env.last()
-    #     print(agent)
-    #     print(mao_env.unwrapped.game.decode_observation(observation["observation"]))
-    #     print()
-    #     if termination or truncation:
-    #         action = None
-    #     else:
-    #         action = mao_env.action_space(agent).sample(observation["action_mask"])  # this is where you would insert your policy
+    # AEC API Random Sampler
+    mao_env.reset()
+    while not mao_env.game.is_done:
+        observation, reward, termination, truncation, info = mao_env.last()
+        print(mao_env.game.players[mao_env.game.turn])
+        print(mao_env.unwrapped.game.unflatten_observation(observation["observation"]))
+        print()
+        if termination or truncation:
+            action = None
+        else:
+            action = mao_env.action_space(mao_env.game.players[mao_env.game.turn]).sample(observation["action_mask"])  # this is where you would insert your policy
     
-    #     mao_env.step(action)
-    # mao_env.close()
+        mao_env.step(action)
+    mao_env.close()

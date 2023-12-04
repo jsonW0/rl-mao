@@ -3,8 +3,8 @@ from collections import Counter, OrderedDict
 import numpy as np
 import copy
 from typing import NamedTuple, List
-from player import *
-from card import *
+from .player import *
+from .card import *
 
 class Config(NamedTuple):
     num_players: int
@@ -123,7 +123,7 @@ class MaoGame:
         self.turn %= self.config.num_players
         self.card_num += 1
 
-    def encode(self,cards):
+    def encode_hand(self,cards):
         '''
         Convert a list of cards to a one-hot encoded vector [Number of Egg Nigiri, Number of Salmon Nigiri, ...]
         :param cards: list of card objects
@@ -134,7 +134,7 @@ class MaoGame:
             one_hot[card.id]+=1
         return np.array(one_hot,dtype=np.int8)
     
-    def decode(self,one_hot):
+    def decode_hand(self,one_hot):
         '''
         Convert a one-hot encoded vector [Number of Egg Nigiri, Number of Salmon Nigiri, ...] to a list of cards
         :param one_hot: list of card counts
@@ -144,6 +144,22 @@ class MaoGame:
         for i,index in enumerate(one_hot):
             cards.extend([id_to_card(i) for _ in range(int(index))])
         return cards
+    
+    def encode_played_cards(self,cards):
+        vector = []
+        for i in range(52):
+            if i<len(cards):
+                vector.append(cards[-(i+1)].id)
+            else:
+                vector.append(-1)
+        return vector
+
+    def decode_played_cards(self,vector):
+        cards = []
+        for i in range(52):
+            if vector[i]!=-1:
+                cards.append(id_to_card(vector[i]))
+        return cards[::-1]
     
     def flatten_observation(self,observation):
         '''
@@ -160,12 +176,11 @@ class MaoGame:
     def unflatten_observation(self,flattened):
         observation = {}
         start_index = 0
-        print(self.decode(flattened[start_index:start_index+52]))
-        observation["hands"] = self.decode(flattened[start_index:start_index+52])
+        observation["hands"] = self.decode_hand(flattened[start_index:start_index+52])
         start_index = 52
         observation["hand_lengths"] = flattened[start_index:start_index+self.config.num_players]
         start_index = 52+self.config.num_players
-        observation["played_cards"] = self.decode(flattened[start_index:start_index+52])
+        observation["played_cards"] = self.decode_played_cards(flattened[start_index:start_index+52])
         start_index = 1-4+self.config.num_players
         observation["points"] = flattened[start_index:start_index+self.config.num_players]
         return observation
@@ -185,12 +200,12 @@ class MaoGame:
         observation_order = [(playerIndex + i) % self.config.num_players for i in range(self.config.num_players)]
         return OrderedDict(sorted({
             "observation": self.flatten_observation({
-                "hand": self.encode(self.players[playerIndex].hand),
+                "hand": self.encode_hand(self.players[playerIndex].hand),
                 "hand_lengths": np.array([len(self.players[i].hand) for i in range(len(self.players))],dtype=np.float32),
-                "played_cards": self.encode(self.played_cards),
+                "played_cards": self.encode_played_cards(self.played_cards),
                 "points": np.array([self.players[i].points for i in observation_order],dtype=np.float32),
             }),
-            "action_mask": np.array(self.encode(set(self.players[playerIndex].hand)),dtype=np.int8),
+            "action_mask": np.array(self.encode_hand(set(self.players[playerIndex].hand)),dtype=np.int8),
         }.items()))
     
     def get_reward(self, playerIndex):
