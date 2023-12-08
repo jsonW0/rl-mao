@@ -13,7 +13,10 @@ from tqdm import tqdm
 from plotting import *
 
 '''
-Usage: python eval_agent.py --save_name dqn --agents Random Random Random DQN,agents/CutthroatCombo/dqn --config CutthroatCombo --num_evals 3
+Usage:
+python eval_agent.py --save_name dqn --agents Random Random Random DQN,agents/uno/dqn --num_evals 1
+python eval_agent.py --save_name all_manual --agents Manual Manual Manual Manual
+
 '''
 
 def main():

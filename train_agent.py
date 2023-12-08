@@ -16,12 +16,14 @@ from tianshou.utils import TensorboardLogger
 from tianshou.utils.net.common import Net, ActorCritic
 from torch.utils.tensorboard import SummaryWriter
 from mao_env.env import MaoEnv
+from mao_env.mao import Config
 from manual_policy import UnoPolicy
 from utils import *
 import dill as pickle
 
 '''
-Usage: python train_policy.py --num_agents 3 --save_name dqn --policy DQN --memory --opponents Self Self Self --config CutthroatCombo
+Usage:
+python train_agent.py --num_agents 3 --save_name dqn --policy DQN --opponents Manual Manual Manual
 '''
 
 def set_seed(seed, train_envs, test_envs):
@@ -33,14 +35,8 @@ def set_seed(seed, train_envs, test_envs):
     test_envs.seed(seed)
 
 def get_env(config,render_mode=None):
-    if config=="MyFirstMeal":
-        config = MyFirstMeal
-    elif config=="CutthroatCombo":
-        config = CutthroatCombo
-    else:
-        raise NotImplementedError(f"Config {config} not supported.")
-    env = SushiGoPartyEnv(config, render_mode=render_mode)
-    env = parallel_to_aec(env)
+    config = Config(4,["Alpha","Beta","Gamma","Delta"],52)
+    env = MaoEnv(config, render_mode=render_mode)
     env = PettingZooEnv(env)
     return env
 
@@ -52,16 +48,16 @@ def get_agents(args, agent_learn=None, optim=None):
     if agent_learn is None:
         def dist(p, m):
             return MaskedCategorical(logits=p, mask=m)
-        net = MaskedNet(observation_space.shape, action_space.n, mask=not args.memory, hidden_sizes=[128, 128, 128, 128], device="cpu").to("cpu")
+        net = Net(observation_space.shape, action_space.n, hidden_sizes=[128, 128, 128, 128], device="cpu").to("cpu")
         if args.policy=="DQN":
             optim = torch.optim.Adam(net.parameters(), lr=args.lr)
             agent_learn = DQNPolicy(net, optim, args.gamma, estimation_step=args.n_step, target_update_freq=args.target_update_freq)
         elif args.policy=="C51":
             optim = torch.optim.Adam(net.parameters(), lr=args.lr)
-            agent_learn = C51Policy(net, optim, args.gamma, 37, estimation_step=args.n_step, target_update_freq=args.target_update_freq)
+            agent_learn = C51Policy(net, optim, args.gamma, 52, estimation_step=args.n_step, target_update_freq=args.target_update_freq)
         elif args.policy=="Rainbow":
             optim = torch.optim.Adam(net.parameters(), lr=args.lr)
-            agent_learn = RainbowPolicy(net, optim, args.gamma, 37, estimation_step=args.n_step, target_update_freq=args.target_update_freq)
+            agent_learn = RainbowPolicy(net, optim, args.gamma, 52, estimation_step=args.n_step, target_update_freq=args.target_update_freq)
         elif args.policy=="PG":
             actor = Actor(net, action_space.n)
             optim = torch.optim.Adam(actor.parameters(), lr=args.lr)
@@ -100,13 +96,7 @@ def get_agents(args, agent_learn=None, optim=None):
             agents.append(RandomPolicy())
         elif agent == "Manual":
             names.append("Manual")
-            agents.append(ManualPolicy())
-        elif agent == "AverageRanked":
-            names.append("AverageRanked")
-            agents.append(AverageRankedPolicy())
-        elif agent == "WinnerRanked":
-            names.append("WinnerRanked")
-            agents.append(WinnerRankedPolicy())
+            agents.append(UnoPolicy())
         elif agent == "Self":
             names.append("Self")
             agents.append(agent_learn)
@@ -123,14 +113,8 @@ def get_agents(args, agent_learn=None, optim=None):
 
 def train_agent(args, agent_learn=None):
     # Setup environments
-    if args.config == "MyFirstMeal":
-        train_envs = DummyVectorEnv([(lambda: get_env(args.config)) for _ in range(args.training_num)])
-        test_envs = DummyVectorEnv([(lambda: get_env(args.config)) for _ in range(args.test_num)])
-    elif args.config == "CutthroatCombo":
-        train_envs = DummyVectorEnv([(lambda: get_env(args.config)) for _ in range(args.training_num)])
-        test_envs = DummyVectorEnv([(lambda: get_env(args.config)) for _ in range(args.test_num)])
-    else:
-        raise NotImplementedError(f"{args.config} not recognized")
+    train_envs = DummyVectorEnv([(lambda: get_env(args.config)) for _ in range(args.training_num)])
+    test_envs = DummyVectorEnv([(lambda: get_env(args.config)) for _ in range(args.test_num)])
 
     # Set seed
     set_seed(args.seed, train_envs, test_envs)
@@ -218,13 +202,12 @@ def main():
 
     # Setup arguments
     parser.add_argument("--policy", type=str, required=True, help="Name of policy to train")
-    parser.add_argument("--memory", action='store_true', help="Whether policy uses the observation memory or not")
     parser.add_argument("--opponents", type=str, required=True, nargs='+', help="Specify opponents. Either name or a name,path if is a trained policy")
     parser.add_argument("--save_name", type=str, required=True, help="Save results to filename")
     parser.add_argument("--num_agents", type=int, default=1, help="Number of agents to train")
     parser.add_argument("--render", type=float, default=1e-9, help="Render speed (seconds)")
     parser.add_argument("--logdir", type=str, default="log/dqn", help="Directory to log training info to")
-    parser.add_argument("--config", type=str, required=True, help="Select config")
+    parser.add_argument("--config", type=str, default="uno", help="Select config")
 
     # Model-specific parameters
     parser.add_argument("--gamma", type=float, default=1.0, help="Discount factor")
@@ -233,7 +216,7 @@ def main():
     parser.add_argument("--hidden_sizes", type=int, nargs="*", default=[128, 128, 128, 128], help="DQN network architecture")
 
     # Training parameters
-    parser.add_argument("--epoch", type=int, default=50, help="Number of epochs for training, unless stop function is set")
+    parser.add_argument("--epoch", type=int, default=3, help="Number of epochs for training, unless stop function is set")
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--optim", type=str, default="Adam", help="Optimizer")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")

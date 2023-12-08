@@ -81,13 +81,13 @@ class MaoGame:
             self.played_cards = [self.played_cards[-1]]
         self.players[playerIndex].hand.append(self.deck.pop())
 
-    def play(self,action): #TODO add special cards
+    def play(self,action):
         '''
         Plays the cards each player has selected
         :param action: the card id chosen by the player
         '''
         if self.is_done:
-            print("Tried to play done game!")
+            # print("Tried to play done game!")
             self.turn+=1
             self.turn%=self.config.num_players
             return
@@ -104,7 +104,7 @@ class MaoGame:
             else:
                 valid = False
                 self.draw(self.turn)
-                print(f"Penalty to {self.players[self.turn].name} for violating rule {rule}")
+                # print(f"Penalty to {self.players[self.turn].name} for violating rule {rule}")
         if valid:
             self.played_cards.append(current_player.hand.pop(played_card_index))
 
@@ -116,7 +116,7 @@ class MaoGame:
         winners = [player for player in self.players if len(player.hand)==0]
         if len(winners)>0:
             self.is_done = True
-            print(f"The winner is {winners}.")
+            # print(f"The winner is {winners}.")
 
         # Increment game counter variables
         self.turn += 1
@@ -169,7 +169,7 @@ class MaoGame:
             observation["hand"],
             observation["hand_lengths"],
             observation["played_cards"],
-            observation["points"]
+            # observation["points"]
         ])
         return flattened  
      
@@ -181,8 +181,8 @@ class MaoGame:
         observation["hand_lengths"] = flattened[start_index:start_index+self.config.num_players]
         start_index = 52+self.config.num_players
         observation["played_cards"] = self.decode_played_cards(flattened[start_index:start_index+52])
-        start_index = 1-4+self.config.num_players
-        observation["points"] = flattened[start_index:start_index+self.config.num_players]
+        # start_index = 1-4+self.config.num_players
+        # observation["points"] = flattened[start_index:start_index+self.config.num_players]
         return observation
 
     def get_observation(self,playerIndex):
@@ -203,17 +203,18 @@ class MaoGame:
                 "hand": self.encode_hand(self.players[playerIndex].hand),
                 "hand_lengths": np.array([len(self.players[i].hand) for i in range(len(self.players))],dtype=np.float32),
                 "played_cards": self.encode_played_cards(self.played_cards),
-                "points": np.array([self.players[i].points for i in observation_order],dtype=np.float32),
+                # "points": np.array([self.players[i].points for i in observation_order],dtype=np.float32),
             }),
             "action_mask": np.array(self.encode_hand(set(self.players[playerIndex].hand)),dtype=np.int8),
         }.items()))
     
     def get_reward(self, playerIndex):
         length_of_hand = len(self.players[playerIndex].hand)
-        if length_of_hand==0:
-            return 10000
-        else:
-            return -length_of_hand
+        return -length_of_hand
+        # if length_of_hand==0:
+        #     return 10000
+        # else:
+        #     return -length_of_hand
 
 if __name__ == "__main__":
     game = MaoGame(Config(3,["Alpha","Beta","Gamma"],52))
