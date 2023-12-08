@@ -23,7 +23,7 @@ import dill as pickle
 
 '''
 Usage:
-python train_agent.py --num_agents 3 --save_name dqn --policy DQN --opponents Manual Manual Manual
+python train_agent.py --num_agents 1 --save_name dqn --policy DQN --opponents Manual Manual Manual --epoch 100
 '''
 
 def set_seed(seed, train_envs, test_envs):
@@ -48,7 +48,7 @@ def get_agents(args, agent_learn=None, optim=None):
     if agent_learn is None:
         def dist(p, m):
             return MaskedCategorical(logits=p, mask=m)
-        net = Net(observation_space.shape, action_space.n, hidden_sizes=[128, 128, 128, 128], device="cpu").to("cpu")
+        net = Net(observation_space.shape, action_space.n, hidden_sizes=[256, 256, 256, 256], device="cpu").to("cpu")
         if args.policy=="DQN":
             optim = torch.optim.Adam(net.parameters(), lr=args.lr)
             agent_learn = DQNPolicy(net, optim, args.gamma, estimation_step=args.n_step, target_update_freq=args.target_update_freq)

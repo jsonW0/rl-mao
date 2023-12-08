@@ -86,13 +86,15 @@ class MaoGame:
         Plays the cards each player has selected
         :param action: the card id chosen by the player
         '''
+        current_player = self.players[self.turn]
+        current_player.points = 0
+
         if self.is_done:
             # print("Tried to play done game!")
             self.turn+=1
             self.turn%=self.config.num_players
             return
 
-        current_player = self.players[self.turn]
         played_card_index = [i for i,card in enumerate(current_player.hand) if card.id==action][0]
         played_card = current_player.hand[played_card_index]
 
@@ -104,6 +106,7 @@ class MaoGame:
             else:
                 valid = False
                 self.draw(self.turn)
+                current_player.points-=1
                 # print(f"Penalty to {self.players[self.turn].name} for violating rule {rule}")
         if valid:
             self.played_cards.append(current_player.hand.pop(played_card_index))
@@ -209,12 +212,19 @@ class MaoGame:
         }.items()))
     
     def get_reward(self, playerIndex):
-        length_of_hand = len(self.players[playerIndex].hand)
-        return -length_of_hand
-        # if length_of_hand==0:
-        #     return 10000
-        # else:
-        #     return -length_of_hand
+        if self.is_done and len(self.players[playerIndex].hand)==0:
+            return 1
+        else:
+            return 0
+        # if len(self.players[playerIndex].hand)==0:
+        #     return 10
+        # return self.players[playerIndex].points
+        # length_of_hand = len(self.players[playerIndex].hand)
+        # return -length_of_hand
+        # # if length_of_hand==0:
+        # #     return 10000
+        # # else:
+        # #     return -length_of_hand
 
 if __name__ == "__main__":
     game = MaoGame(Config(3,["Alpha","Beta","Gamma"],52))
