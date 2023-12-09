@@ -80,7 +80,7 @@ class MaoEnv(AECEnv):
         #     "action_mask": MultiBinary([52]),
         # })
         return Dict({
-            "observation": Box(low=np.NINF,high=np.PINF,shape=[104+self.config.num_players]),
+            "observation": Discrete(53),
             "action_mask": MultiBinary([52]),
         })
 

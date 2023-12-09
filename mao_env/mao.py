@@ -94,21 +94,20 @@ class MaoGame:
             self.turn+=1
             self.turn%=self.config.num_players
             return
-
         played_card_index = [i for i,card in enumerate(current_player.hand) if card.id==action][0]
         played_card = current_player.hand[played_card_index]
 
         # Apply any validity rules
-        valid = True
+        self.last_valid = True
         for rule in self.validity_rules:
             if rule(self,played_card):
                 pass
             else:
-                valid = False
+                self.last_valid = False
                 self.draw(self.turn)
                 current_player.points-=1
                 # print(f"Penalty to {self.players[self.turn].name} for violating rule {rule}")
-        if valid:
+        if self.last_valid:
             self.played_cards.append(current_player.hand.pop(played_card_index))
 
             # Apply any dynamics rules
@@ -201,30 +200,38 @@ class MaoGame:
             action_mask: boolean mask [has EggNigiri in hand, has SalmonNigiri in hand, ...]
         '''
         observation_order = [(playerIndex + i) % self.config.num_players for i in range(self.config.num_players)]
-        return OrderedDict(sorted({
-            "observation": self.flatten_observation({
-                "hand": self.encode_hand(self.players[playerIndex].hand),
-                "hand_lengths": np.array([len(self.players[i].hand) for i in range(len(self.players))],dtype=np.float32),
-                "played_cards": self.encode_played_cards(self.played_cards),
-                # "points": np.array([self.players[i].points for i in observation_order],dtype=np.float32),
-            }),
-            "action_mask": np.array(self.encode_hand(set(self.players[playerIndex].hand)),dtype=np.int8),
-        }.items()))
+
+        if len(self.played_cards) > 0:
+            return OrderedDict(sorted({
+                "observation": [self.played_cards[-1].id],
+                "action_mask": np.array(self.encode_hand(set(self.players[playerIndex].hand)),dtype=np.int8),
+            }.items()))
+        else:
+            return OrderedDict(sorted({
+                "observation": [52],
+                "action_mask": np.array(self.encode_hand(set(self.players[playerIndex].hand)),dtype=np.int8),
+            }.items()))
     
     def get_reward(self, playerIndex):
-        if self.is_done and len(self.players[playerIndex].hand)==0:
-            return 1
-        else:
-            return 0
+
+        # if self.is_done and len(self.players[playerIndex].hand)==0:
+        #     return 1
+        # else:
+        #     return 0
         # if len(self.players[playerIndex].hand)==0:
         #     return 10
         # return self.players[playerIndex].points
         # length_of_hand = len(self.players[playerIndex].hand)
-        # return -length_of_hand
-        # # if length_of_hand==0:
-        # #     return 10000
-        # # else:
-        # #     return -length_of_hand
+        # # return -length_of_hand
+        # if length_of_hand==0:
+        #     return 10000
+        # else:
+        #     return -length_of_hand
+
+        if self.last_valid:
+            return 1
+        else:
+            return -1
 
 if __name__ == "__main__":
     game = MaoGame(Config(3,["Alpha","Beta","Gamma"],52))

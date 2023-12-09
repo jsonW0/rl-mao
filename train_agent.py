@@ -48,7 +48,7 @@ def get_agents(args, agent_learn=None, optim=None):
     if agent_learn is None:
         def dist(p, m):
             return MaskedCategorical(logits=p, mask=m)
-        net = Net(observation_space.shape, action_space.n, hidden_sizes=[256, 256, 256, 256], device="cpu").to("cpu")
+        net = Net(observation_space.shape, action_space.n, hidden_sizes=[1024, 1024, 1024], device="cpu").to("cpu")
         if args.policy=="DQN":
             optim = torch.optim.Adam(net.parameters(), lr=args.lr)
             agent_learn = DQNPolicy(net, optim, args.gamma, estimation_step=args.n_step, target_update_freq=args.target_update_freq)

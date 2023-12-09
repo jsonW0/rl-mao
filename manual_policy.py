@@ -9,14 +9,14 @@ game_copy = MaoGame(Config(4,["Alpha","Beta","Gamma","Delta"],52))
 class UnoPolicy(BasePolicy):
     def forward(self, batch: Batch, state: Optional[Union[dict, Batch, np.ndarray]] = None, **kwargs: Any,) -> Batch:
         mask = batch.obs.mask
-        observation = [game_copy.unflatten_observation(obs) for obs in batch.obs.obs]
+        observation = batch.obs.obs # no need to unflattetn
         batched_logits = []
         for i in range(len(observation)):
-            played_cards = observation[i]['played_cards']
-            if len(played_cards)==0:
+            top_card = observation[i][0]
+            if top_card == 52: # No top card, game just started
                 uno_mask = [False for _ in range(52)]
             else:
-                uno_mask = [id_to_card(id).suit==played_cards[-1].suit or id_to_card(id).number==played_cards[-1].number for id in range(52)]
+                uno_mask = [id_to_card(id).suit==id_to_card(top_card).suit or id_to_card(id).number==id_to_card(top_card).number for id in range(52)]
             logits = np.random.rand(52)
             if (~np.logical_and(mask[i],uno_mask)).all():
                 logits[~mask[i]] = -np.inf
