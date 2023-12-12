@@ -11,6 +11,17 @@ class Config(NamedTuple):
     player_names: List[str]
     deck_size: int
 
+# for harsher penalties, we can insert rules multiple times
+
+def spade_to_spade_rule(game,card): # cannot play a spade if last card is a spade
+    return len(game.played_cards)==0 or game.played_cards[-1].suit!="S" or card.suit!="S"
+
+def spade_to_spade_ace_rule(game, card): # cannot play ace of spades if last card is a spade
+    return len(game.played_cards)==0 or game.played_cards[-1].suit!="S" or card.suit!="S" or card.number != 1
+
+def ace_to_spade_ace_rule(game, card): # cannot play ace of spades if last card is an ace
+    return len(game.played_cards)==0 or game.played_cards[-1].number!=1 or card.suit!="S" or card.number != 1
+
 def uno_rules(game,card):
     return len(game.played_cards)==0 or game.played_cards[-1].suit==card.suit or game.played_cards[-1].number==card.number
 

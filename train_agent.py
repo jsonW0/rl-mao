@@ -53,9 +53,11 @@ def get_agents(args, agent_learn=None, optim=None):
             optim = torch.optim.Adam(net.parameters(), lr=args.lr)
             agent_learn = DQNPolicy(net, optim, args.gamma, estimation_step=args.n_step, target_update_freq=args.target_update_freq)
         elif args.policy=="C51":
+            net = Net(observation_space.shape, action_space.n, hidden_sizes=[512, 512, 512, 512], num_atoms = 52, device="cpu").to("cpu")
             optim = torch.optim.Adam(net.parameters(), lr=args.lr)
             agent_learn = C51Policy(net, optim, args.gamma, 52, estimation_step=args.n_step, target_update_freq=args.target_update_freq)
         elif args.policy=="Rainbow":
+            net = Net(observation_space.shape, action_space.n, hidden_sizes=[1024, 1024, 1024, 1024], num_atoms = 52, device="cpu").to("cpu")
             optim = torch.optim.Adam(net.parameters(), lr=args.lr)
             agent_learn = RainbowPolicy(net, optim, args.gamma, 52, estimation_step=args.n_step, target_update_freq=args.target_update_freq)
         elif args.policy=="PG":
