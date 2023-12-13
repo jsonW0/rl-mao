@@ -10,6 +10,7 @@ from .mao import *
 from pettingzoo import AECEnv
 from pettingzoo.utils import agent_selector, wrappers
 from pettingzoo.test import api_test
+from copy import deepcopy
 
 
 def env(config,render_mode=None):
@@ -164,9 +165,14 @@ class MaoEnv(AECEnv):
         """
         current_agent = self.agents[self.game.turn]
         current_agent_id = self.game.turn
-
+        information = deepcopy({"player_index": self.game.turn, "hand": self.game.players[self.game.turn].hand, "action": id_to_card(action), "obs": self.game.played_cards[-1:]})
+        
         # run one step in game
         self.game.play(action)
+
+        self.infos = {agent: {} for agent in self.agents}
+        information.update(self.game.players[current_agent_id].rules_violated)
+        self.infos[self.agents[self.game.turn]] = information
         
         # update agent 
         self.rewards = {agent: 0 for agent in self.agents}
@@ -180,7 +186,7 @@ class MaoEnv(AECEnv):
                     break
                 if not self.terminations[agent]:
                     broken = True
-            if not broken:
+            if not broken: 
                 self.terminations[self.agents[self.game.turn]] = True
         self._accumulate_rewards()
         self.agent_selection = self.agents[self.game.turn]

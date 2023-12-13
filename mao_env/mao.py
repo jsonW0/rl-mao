@@ -2,7 +2,7 @@ import random
 from collections import Counter, OrderedDict
 import numpy as np
 import copy
-from typing import NamedTuple, List
+from typing import NamedTuple, List, Callable
 from .player import *
 from .card import *
 
@@ -10,6 +10,7 @@ class Config(NamedTuple):
     num_players: int
     player_names: List[str]
     deck_size: int
+    validity_rules: List[Callable]
 
 def uno_rules(game,card):
     return len(game.played_cards)==0 or game.played_cards[-1].suit==card.suit or game.played_cards[-1].number==card.number
@@ -18,6 +19,30 @@ def king_skips(game,card):
     if card.number==13:
         game.turn+=1
         game.turn%=game.config.num_players
+
+def alternating_color_rule(game,card): # cannot play same color as previous card
+    if len(game.played_cards)==0:
+        return True
+    prev_color = game.played_cards[-1].suit in ["S", "C"]
+    curr_color = card.suit in ["S", "C"]
+    return  prev_color != curr_color
+
+def alternating_suit_rule(game,card): # cannot play same suit as previous card
+    return len(game.played_cards)==0 or (game.played_cards[-1].suit != card.suit)
+
+def one_larger_rule(game,card): # cannot play a number equal to or one larger than that of previous card
+    return len(game.played_cards)==0 or (not (card.number == 1 and game.played_cards[-1].number in [1, 13]) and not (game.played_cards[-1].number in [card.number, card.number - 1]))
+
+def six_larger_rule(game,card):
+    if len(game.played_cards)==0:
+        return True
+    last_card = game.played_cards[-1].number
+    wrap_around = 6 + last_card
+    if wrap_around <= 13:
+        return not (card.number >= last_card and card.number <= last_card + 6)
+    else:
+        wrap_around %= 13
+        return not((card.number <= wrap_around) or (card.number >= last_card))
 
 class MaoGame:
     '''
@@ -99,12 +124,14 @@ class MaoGame:
 
         # Apply any validity rules
         self.last_valid = True
+        current_player.rules_violated = defaultdict(int)
         for rule in self.validity_rules:
             if rule(self,played_card):
                 pass
             else:
                 self.last_valid = False
                 self.draw(self.turn)
+                current_player.rules_violated[rule.__name__]+=1
                 current_player.points-=1
                 # print(f"Penalty to {self.players[self.turn].name} for violating rule {rule}")
         if self.last_valid:

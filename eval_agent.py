@@ -11,12 +11,12 @@ from tianshou.policy import MultiAgentPolicyManager, RandomPolicy
 from manual_policy import UnoPolicy
 from tqdm import tqdm
 from plotting import *
+from detailed_collector import DetailedCollector
 
 '''
 Usage:
 python eval_agent.py --save_name dqn --agents Random Random Random DQN,agents/uno/dqn --num_evals 1
 python eval_agent.py --save_name all_manual --agents Manual Manual Manual Manual
-
 '''
 
 def main():
@@ -25,7 +25,7 @@ def main():
     parser.add_argument("--agents", type=str, required=False, nargs='+', help="Specify agents. Either name or a name,path or name,folder if is a trained policy. Only one folder may be specified.")
     parser.add_argument("--num_evals", type=int, default=1, help="Number of evaluations to do. >1 => specified a folder")
     parser.add_argument("--config", type=str, default="uno", help="Select config to use for evaluation")
-    parser.add_argument("--n_episodes", type=int, default=100, help="Number of episodes to run")
+    parser.add_argument("--n_episodes", type=int, default=1000, help="Number of episodes to run")
     parser.add_argument("--save_game_text", action='store_true', help="Save game text")
     parser.add_argument("--render", type=float, default=1e-9, help="Render speed (seconds)")
     parser.add_argument("--seed", type=int, default=42, help="Set random seed")
@@ -60,7 +60,7 @@ def main():
         os.makedirs(f"results/{args.config}/{args.save_name}", exist_ok=True)
         with open(f"results/{args.config}/{args.save_name}/game.txt","w") as f:
             pass
-        config = Config(4,["Alpha","Beta","Gamma","Delta"],52)
+        config = Config(4,["Alpha","Beta","Gamma","Delta"],52,[uno_rules])
         if args.save_game_text:
             env = MaoEnv(config, render_mode="file", save_render=f"results/{args.config}/{args.save_name}/game.txt")
         else:
@@ -69,17 +69,19 @@ def main():
         env = PettingZooEnv(env)
         policy = MultiAgentPolicyManager(agents, env)
         env = DummyVectorEnv([lambda: env])
-        collector = Collector(policy, env)
+        collector = DetailedCollector(policy, env)
         result = collector.collect(n_episode=args.n_episodes, render=args.render)
         results.append(result)
 
     # Save results
     with open(f"results/{args.config}/{args.save_name}/results.pickle","wb") as f:
         pickle.dump(results,f)
-    df = pd.DataFrame(np.concatenate([result['rews'] for result in results],axis=0),columns=names)
-    df.to_csv(f"results/{args.config}/{args.save_name}/scores.csv",index=False)
-    plot_means(df,title=f"{args.save_name},{args.config},N={args.n_episodes*args.num_evals}",save_name=f"results/{args.config}/{args.save_name}/mean_score.png",show=False)
-    plot_wins(df,title=f"{args.save_name},{args.config},N={args.n_episodes*args.num_evals}",save_name=f"results/{args.config}/{args.save_name}/win_count.png",show=False)
+    
+    # df = pd.DataFrame(np.concatenate([result['rews'] for result in results],axis=0),columns=names)
+    # df.to_csv(f"results/{args.config}/{args.save_name}/scores.csv",index=False)
+    # plot_means(df,title=f"{args.save_name},{args.config},N={args.n_episodes*args.num_evals}",save_name=f"results/{args.config}/{args.save_name}/mean_score.png",show=False)
+    # plot_wins(df,title=f"{args.save_name},{args.config},N={args.n_episodes*args.num_evals}",save_name=f"results/{args.config}/{args.save_name}/win_count.png",show=False)    
+    print(compute_scopes(results,config))
 
 if __name__ == "__main__":
     start = time.perf_counter()

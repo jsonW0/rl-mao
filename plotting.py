@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from collections import Counter
+from collections import Counter, defaultdict
+from mao_env.mao import *
 
 def plot_means(rewards_df,title,save_name=None,show=True):
     fig, ax = plt.subplots()
@@ -41,3 +42,23 @@ def plot_wins(rewards_df,title,save_name=None,show=True):
         plt.savefig(save_name)
     if show:
         plt.show()
+
+def compute_scopes(results,config):
+    game = MaoGame(config)
+    scopes = {i:defaultdict(lambda: {"passed": 0, "failed": 0}) for i in range(config.num_players)}
+    for episode in results:
+        for player_id in range(config.num_players):
+            states = episode["episode_states"][player_id]
+            for state in states:
+                hand = state["hand"]
+                last_card = state["obs"]
+                # action = state["action"]
+                if len(last_card)>0: # Ignoring first card since that is always legal!
+                    game.played_cards = last_card
+                    for potential_card in hand:
+                        for rule in config.validity_rules:
+                            if rule(game,potential_card):
+                                scopes[player_id][rule.__name__]["passed"]+=1
+                            else:
+                                scopes[player_id][rule.__name__]["failed"]+=1
+    return scopes

@@ -4,7 +4,7 @@ from tianshou.policy import BasePolicy
 import numpy as np
 from mao_env.mao import *
 
-game_copy = MaoGame(Config(4,["Alpha","Beta","Gamma","Delta"],52))
+game_copy = MaoGame(Config(4,["Alpha","Beta","Gamma","Delta"],52,[uno_rules]))
 
 class UnoPolicy(BasePolicy):
     def forward(self, batch: Batch, state: Optional[Union[dict, Batch, np.ndarray]] = None, **kwargs: Any,) -> Batch:

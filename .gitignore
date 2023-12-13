@@ -1,4 +1,7 @@
 results/
+agents/
+log/
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
