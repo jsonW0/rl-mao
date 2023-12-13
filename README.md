@@ -18,6 +18,7 @@ conda install python=3.9
 pip install pettingzoo
 pip install tianshou
 pip install dill
+pip install wandb
 ```
 
 ## Project Organization

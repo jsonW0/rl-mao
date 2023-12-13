@@ -52,7 +52,6 @@ def compute_scopes(results,config):
             for state in states:
                 hand = state["hand"]
                 last_card = state["obs"]
-                # action = state["action"]
                 if len(last_card)>0: # Ignoring first card since that is always legal!
                     game.played_cards = last_card
                     for potential_card in hand:
@@ -61,4 +60,23 @@ def compute_scopes(results,config):
                                 scopes[player_id][rule.__name__]["passed"]+=1
                             else:
                                 scopes[player_id][rule.__name__]["failed"]+=1
-    return scopes
+    return {player_id:{rule:value["failed"]/(value["passed"]+value["failed"]) for rule,value in rules.items()} for player_id,rules in scopes.items()}
+
+def compute_confidence(results,config):
+    game = MaoGame(config)
+    scopes = {i:defaultdict(lambda: {"passed": 0, "failed": 0}) for i in range(config.num_players)}
+    # for episode in results:
+    for player_id in range(config.num_players):
+        states = results[player_id]
+        # print("LENGTH",len(states))
+        for state in states:
+            last_card = state["obs"]
+            action = state["action"]
+            if len(last_card)>0: # Ignoring first card since that is always legal!
+                game.played_cards = last_card
+                for rule in config.validity_rules:
+                    if rule(game,action):
+                        scopes[player_id][rule.__name__]["passed"]+=1
+                    else:
+                        scopes[player_id][rule.__name__]["failed"]+=1
+    return {player_id:{rule:value["failed"]/(value["passed"]+value["failed"]) for rule,value in rules.items()} for player_id,rules in scopes.items()}

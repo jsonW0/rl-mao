@@ -44,6 +44,8 @@ def six_larger_rule(game,card):
         wrap_around %= 13
         return not((card.number <= wrap_around) or (card.number >= last_card))
 
+rule_names_to_functions = {"uno":uno_rules,"king_skips":king_skips,"alt_color":alternating_color_rule,"alt_suit":alternating_suit_rule,"one_larger":one_larger_rule,"six_larger":six_larger_rule}
+
 class MaoGame:
     '''
     An instance of a Mao Game, containing all game rules and states
@@ -62,7 +64,7 @@ class MaoGame:
         self.card_num = 0
         self.turn = 0
         self.is_done = False
-        self.validity_rules = [uno_rules]
+        self.validity_rules = config.validity_rules
         self.dynamics_rules = [] #[king_skips]
 
     def __repr__(self):

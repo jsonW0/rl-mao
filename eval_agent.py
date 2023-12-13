@@ -8,10 +8,11 @@ from mao_env.mao import *
 from tianshou.env import PettingZooEnv, DummyVectorEnv
 from tianshou.data import Collector, Batch
 from tianshou.policy import MultiAgentPolicyManager, RandomPolicy
-from manual_policy import UnoPolicy
+from manual_policy import ManualPolicy
 from tqdm import tqdm
 from plotting import *
 from detailed_collector import DetailedCollector
+import string
 
 '''
 Usage:
@@ -24,7 +25,7 @@ def main():
     parser.add_argument("--save_name", type=str, required=False, help="Save results to filename")
     parser.add_argument("--agents", type=str, required=False, nargs='+', help="Specify agents. Either name or a name,path or name,folder if is a trained policy. Only one folder may be specified.")
     parser.add_argument("--num_evals", type=int, default=1, help="Number of evaluations to do. >1 => specified a folder")
-    parser.add_argument("--config", type=str, default="uno", help="Select config to use for evaluation")
+    parser.add_argument("--rules", type=str, default=[], nargs='*', help="Select rules to use for evaluation")
     parser.add_argument("--n_episodes", type=int, default=1000, help="Number of episodes to run")
     parser.add_argument("--save_game_text", action='store_true', help="Save game text")
     parser.add_argument("--render", type=float, default=1e-9, help="Render speed (seconds)")
@@ -32,9 +33,9 @@ def main():
     args = parser.parse_args()
 
     results = []
+    config = Config(4,string.ascii_letters[:len(args.agents)],52,[rule_names_to_functions[rule] for rule in args.rules])
 
     for trial in tqdm(range(args.num_evals)):
-
         # Load agents
         names = []
         agents = []
@@ -44,25 +45,24 @@ def main():
                 agents.append(RandomPolicy())
             elif agent=="Manual":
                 names.append("Manual")
-                agents.append(UnoPolicy())
+                agents.append(ManualPolicy(config))
             elif len(agent.split(","))==2:
                 names.append(agent.split(",")[0])
                 if ".pickle" in agent.split(",")[1]:
                     with open(agent.split(",")[1],"rb") as f:
                         agents.append(pickle.load(f))
                 else:
-                    with open(agent.split(",")[1]+f"/{agent.split(',')[1].split('/')[-1]}_agent_{trial}.pickle","rb") as f:
+                    with open(agent.split(",")[1]+f"/agent_{trial}.pickle","rb") as f:
                         agents.append(pickle.load(f))
             else:
                 raise NotImplementedError(f"{agent} not recognized and/or path not given")
 
         # Run environment
-        os.makedirs(f"results/{args.config}/{args.save_name}", exist_ok=True)
-        with open(f"results/{args.config}/{args.save_name}/game.txt","w") as f:
+        os.makedirs(f"results/rules={','.join(sorted(args.rules))}/{args.save_name}", exist_ok=True)
+        with open(f"results/rules={','.join(sorted(args.rules))}/{args.save_name}/game.txt","w") as f:
             pass
-        config = Config(4,["Alpha","Beta","Gamma","Delta"],52,[uno_rules])
         if args.save_game_text:
-            env = MaoEnv(config, render_mode="file", save_render=f"results/{args.config}/{args.save_name}/game.txt")
+            env = MaoEnv(config, render_mode="file", save_render=f"results/rules={','.join(sorted(args.rules))}/{args.save_name}/game.txt")
         else:
             env = MaoEnv(config)
 
@@ -74,13 +74,13 @@ def main():
         results.append(result)
 
     # Save results
-    with open(f"results/{args.config}/{args.save_name}/results.pickle","wb") as f:
+    with open(f"results/rules={','.join(sorted(args.rules))}/{args.save_name}/results.pickle","wb") as f:
         pickle.dump(results,f)
     
-    # df = pd.DataFrame(np.concatenate([result['rews'] for result in results],axis=0),columns=names)
-    # df.to_csv(f"results/{args.config}/{args.save_name}/scores.csv",index=False)
-    # plot_means(df,title=f"{args.save_name},{args.config},N={args.n_episodes*args.num_evals}",save_name=f"results/{args.config}/{args.save_name}/mean_score.png",show=False)
-    # plot_wins(df,title=f"{args.save_name},{args.config},N={args.n_episodes*args.num_evals}",save_name=f"results/{args.config}/{args.save_name}/win_count.png",show=False)    
+    df = pd.DataFrame(np.concatenate([result['rews'] for result in results],axis=0),columns=names)
+    df.to_csv(f"results/rules={','.join(sorted(args.rules))}/{args.save_name}/scores.csv",index=False)
+    plot_means(df,title=f"{args.save_name},rules={','.join(sorted(args.rules))},N={args.n_episodes*args.num_evals}",save_name=f"results/rules={','.join(sorted(args.rules))}/{args.save_name}/mean_score.png",show=False)
+    plot_wins(df,title=f"{args.save_name},rules={','.join(sorted(args.rules))},N={args.n_episodes*args.num_evals}",save_name=f"results/rules={','.join(sorted(args.rules))}/{args.save_name}/win_count.png",show=False)    
     print(compute_scopes(results,config))
 
 if __name__ == "__main__":
