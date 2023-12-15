@@ -125,18 +125,18 @@ class MaoGame:
         played_card = current_player.hand[played_card_index]
 
         # Apply any validity rules
-        self.last_valid = True
+        self.last_valid = 0
         current_player.rules_violated = defaultdict(int)
         for rule in self.validity_rules:
             if rule(self,played_card):
                 pass
             else:
-                self.last_valid = False
+                self.last_valid -=1
                 self.draw(self.turn)
                 current_player.rules_violated[rule.__name__]+=1
                 current_player.points-=1
                 # print(f"Penalty to {self.players[self.turn].name} for violating rule {rule}")
-        if self.last_valid:
+        if self.last_valid==0:
             self.played_cards.append(current_player.hand.pop(played_card_index))
 
             # Apply any dynamics rules
@@ -257,10 +257,10 @@ class MaoGame:
         # else:
         #     return -length_of_hand
 
-        if self.last_valid:
+        if self.last_valid==0:
             return 1
         else:
-            return -1
+            return self.last_valid
 
 if __name__ == "__main__":
     game = MaoGame(Config(3,["Alpha","Beta","Gamma"],52))

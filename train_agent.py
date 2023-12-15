@@ -139,7 +139,7 @@ def train_agent(args, trial, agent_learn=None):
 
     # Logger
 
-    logger = WandbLogger(config=args,project="rl-mao")
+    logger = WandbLogger(config=args,project="rl-mao-2")
     writer = SummaryWriter(os.path.join(args.logdir, "wandb"))
     writer.add_text("args", str(args))
     logger.load(writer)
